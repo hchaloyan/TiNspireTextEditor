@@ -1,95 +1,92 @@
-import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { FileControls } from "./FileControls";
-import { ConnectionManager } from "./ConnectionManager";
+import { useState } from "react";
+import Sidebar from "./components/Sidebar";
+import Toolbar from "./components/Toolbar";
+import Editor from "./components/Editor";
+import Preview from "./components/Preview";
 import "./App.css";
 
-interface FileEntry {
+export interface NoteFile {
+  id: string;
   name: string;
-  path: string;
-  is_directory: boolean;
+  content: string;
 }
 
-function App() {
-  const [files, setFiles] = useState<FileEntry[]>([]);
-  const [editorContent, setEditorContent] = useState("");
-  const [connectionStatus, setConnectionStatus] = useState("Disconnected");
-  const [currentPath, setCurrentPath] = useState("/");
+const defaultFiles: NoteFile[] = [
+  { id: "1", name: "physics_notes", content: "# Physics Notes\n\nNewton's **second law** states that `F = ma`.\n\nThe acceleration of an object depends on the net force and its mass.\n\n## Key Formulas\n\n- F = ma\n- p = mv\n- KE = ½mv²" },
+  { id: "2", name: "calculus_ch3", content: "# Calculus Chapter 3\n\nDerivatives and their applications.\n\n## The Chain Rule\n\nIf `y = f(g(x))`, then `dy/dx = f'(g(x)) · g'(x)`." },
+  { id: "3", name: "chemistry_lab", content: "# Chemistry Lab Notes\n\nExperiment: Titration of acetic acid.\n\n## Observations\n\nThe solution turned pink at **23.4 mL** of NaOH." },
+];
 
-  useEffect(() => {
-    checkConnection();
-    loadFiles(currentPath);
-  }, []);
+export type ViewMode = "edit" | "preview" | "split";
 
-  async function checkConnection() {
-    try {
-      const status = await invoke<string>("check_connection");
-      setConnectionStatus(status);
-    } catch {
-      setConnectionStatus("Disconnected");
-    }
-  }
+export default function App() {
+  const [files, setFiles] = useState<NoteFile[]>(defaultFiles);
+  const [activeId, setActiveId] = useState("1");
+  const [viewMode, setViewMode] = useState<ViewMode>("split");
+  const [calcConnected, setCalcConnected] = useState(false);
 
-  async function loadFiles(path: string) {
-    try {
-      const entries: FileEntry[] = await invoke("list_files", { path });
-      setFiles(entries);
-      setCurrentPath(path);
-    } catch (e) {
-      console.error("Failed to load files:", e);
-    }
-  }
+  const activeFile = files.find((f) => f.id === activeId)!;
 
-  async function openFile(filePath: string) {
-    try {
-      const content: string = await invoke("read_file", { path: filePath });
-      setEditorContent(content);
-    } catch (e) {
-      console.error("Failed to open file:", e);
-    }
-  }
+  const updateContent = (content: string) => {
+    setFiles((prev) =>
+      prev.map((f) => (f.id === activeId ? { ...f, content } : f))
+    );
+  };
 
-  async function createNewFile(fileName: string) {
-    try {
-      await invoke("create_file", { path: currentPath + "/" + fileName });
-      loadFiles(currentPath);
-    } catch (e) {
-      console.error("Failed to create file:", e);
-    }
-  }
+  const renameFile = (name: string) => {
+    setFiles((prev) =>
+      prev.map((f) => (f.id === activeId ? { ...f, name } : f))
+    );
+  };
 
-  function navigateUp() {
-    if (currentPath === "/") return;
-    const parentPath = currentPath.split("/").slice(0, -1).join("/") || "/";
-    loadFiles(parentPath);
-  }
+  const newFile = () => {
+    const id = Date.now().toString();
+    const file: NoteFile = { id, name: "untitled", content: "" };
+    setFiles((prev) => [...prev, file]);
+    setActiveId(id);
+  };
+
+  const deleteFile = (id: string) => {
+    setFiles((prev) => prev.filter((f) => f.id !== id));
+    if (activeId === id) setActiveId(files[0]?.id ?? "");
+  };
 
   return (
-    <div className="app-container">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <h3>Calculator Files</h3>
+    <div className="app">
+      <Sidebar
+        files={files}
+        activeId={activeId}
+        onSelect={setActiveId}
+        onNew={newFile}
+        onDelete={deleteFile}
+        calcConnected={calcConnected}
+        onToggleCalc={() => setCalcConnected((v) => !v)}
+      />
+      <div className="main">
+        <Toolbar
+          fileName={activeFile.name}
+          onRename={renameFile}
+          viewMode={viewMode}
+          onViewMode={setViewMode}
+          content={activeFile.content}
+          fileName2={activeFile.name}
+        />
+        <div className="editor-area">
+          {(viewMode === "edit" || viewMode === "split") && (
+            <Editor
+              content={activeFile.content}
+              onChange={updateContent}
+              split={viewMode === "split"}
+            />
+          )}
+          {(viewMode === "preview" || viewMode === "split") && (
+            <Preview
+              content={activeFile.content}
+              split={viewMode === "split"}
+            />
+          )}
         </div>
-
-        {/* Moved higher up and upgraded to Manager */}
-        <ConnectionManager status={connectionStatus} />
-
-        <div className="file-list">
-          <button className="back-btn" onClick={navigateUp} disabled={currentPath === "/"}>
-            ^
-          </button>
-          <div className="current-path">{currentPath}</div>
-          {/* ... file mapping */}
-        </div>
-        
-        <FileControls onSendMessage={createNewFile} />
-      </aside>
-
-      <main className="editor-container">
-        {/* ... editor */}
-      </main>
+      </div>
     </div>
   );
 }
-
-export default App;
