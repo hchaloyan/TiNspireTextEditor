@@ -1,54 +1,60 @@
-// src/components/ExportButton.tsx
-// Wire this wherever your toolbar's "Export .tns" button lives.
-//
-// Usage:
-//   <ExportButton content={editorText} filename={noteTitle} />
-
-import React from "react";
+import { useEffect, useState } from "react";
 import { useExport } from "../hooks/useExport";
+import "./ExportButton.css";
 
 interface Props {
-  /** Raw text from the editor */
   content: string;
-  /** Suggested filename stem, e.g. "my-note" */
   filename?: string;
 }
 
-export default function ExportButton({ content, filename = "untitled" }: Props) {
-  const { exportTns, exporting, lastSavedPath, error } = useExport();
+interface Toast {
+  message: string;
+  type: "success" | "error";
+}
 
-  async function handleClick() {
+export default function ExportButton({ content, filename = "untitled" }: Props) {
+  const { exportTns, exporting } = useExport();
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type });
+    setVisible(true);
+    setTimeout(() => setVisible(false), 2500);
+    setTimeout(() => setToast(null), 3000); // clear after fade
+  };
+
+  const handleClick = async () => {
     const path = await exportTns(content, filename);
     if (path) {
-      console.log("Saved to:", path);
+      showToast(`✓ ${path.split(/[\\/]/).pop()}`, "success");
+    } else {
+      showToast("✗ Export failed", "error");
     }
-  }
+  };
 
   return (
-    <div style={{ display: "inline-flex", flexDirection: "column", gap: 4 }}>
+    <>
       <button
+        className="export-btn"
         onClick={handleClick}
         disabled={exporting || !content.trim()}
         style={{
-          padding: "6px 16px",
+          opacity: exporting || !content.trim() ? 0.5 : 1,
           cursor: exporting ? "wait" : "pointer",
-          opacity: !content.trim() ? 0.5 : 1,
         }}
       >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginRight: 6 }}>
+          <path d="M6 1v7M3 5l3 3 3-3M1 10h10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+        </svg>
         {exporting ? "Exporting…" : "Export .tns"}
       </button>
 
-      {lastSavedPath && !error && (
-        <span style={{ fontSize: 12, color: "green" }}>
-          ✓ Saved: {lastSavedPath}
-        </span>
+      {toast && (
+        <div className={`export-toast ${toast.type} ${visible ? "toast-in" : "toast-out"}`}>
+          {toast.message}
+        </div>
       )}
-
-      {error && (
-        <span style={{ fontSize: 12, color: "red" }}>
-          ✗ {error}
-        </span>
-      )}
-    </div>
+    </>
   );
 }

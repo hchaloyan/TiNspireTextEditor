@@ -21,17 +21,25 @@ export function useExport() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Generate + save a .tns file for the given content.
-   * @param content  Raw note text from the editor
-   * @param filename Suggested filename stem (no extension)
+   * @param content Raw note text
+   * @param filename Suggested filename
+   * @param isBold Boolean for bold formatting
+   * @param textColor RGB string like "rgb(0,0,0)"
    */
-  async function exportTns(content: string, filename: string) {
+  async function exportTns(
+    content: string, 
+    filename: string, 
+    isBold: boolean = false, 
+    textColor: string = "rgb(0,0,0)"
+  ) {
     setExporting(true);
     setError(null);
     try {
       const result = await invoke<ExportResult>("export_tns", {
         content,
         filename,
+        isBold,      // Matches the Rust snake_case parameter 'is_bold'
+        textColor,   // Matches the Rust snake_case parameter 'text_color'
       });
       setLastSavedPath(result.saved_path);
       return result.saved_path;

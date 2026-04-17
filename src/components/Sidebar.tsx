@@ -53,7 +53,7 @@ export default function Sidebar({ files, activeId, onSelect, onNew, onDelete, ca
         <div className="calc-status">
           <div className={`status-dot ${calcConnected ? "connected" : ""}`} />
           <span className="calc-name">
-            {calcConnected ? "TI-Nspire CX" : "No calculator"}
+            {calcConnected ? "TI-Nspire CX CAS" : "No calculator"}
           </span>
         </div>
         <button className="calc-btn" onClick={onToggleCalc}>

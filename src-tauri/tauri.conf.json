@@ -33,7 +33,8 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "../Luna-master/luna.exe"
+      "../Luna-master/luna.exe",
+      "../Luna-master/zlib1.dll"
     ]
   }
 }
